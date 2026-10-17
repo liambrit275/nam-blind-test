@@ -68,7 +68,7 @@ th{color:var(--muted);font-weight:500}
     <ul class="how">
       <li>You'll hear <b id="nTrials">16</b> short clips of guitar.</li>
       <li>Each one is either the <b class="lA">Real amp</b> or the <b class="lB">NAM capture</b>, picked at random.</li>
-      <li>Listen as many times as you like, then pick which you think it was.</li>
+      <li>Each clip loops until you answer, so listen as long as you like.</li>
       <li>No feedback until the end, then you get your score.</li>
     </ul>
     <label for="name">Your name</label>
@@ -89,8 +89,8 @@ th{color:var(--muted);font-weight:500}
   <section class="card trialCard" id="trial" hidden>
     <div class="head"><b id="tLbl">Clip 1 of 16</b><span id="tState">get ready…</span></div>
     <div class="bar"><div id="tBar"></div></div>
-    <button class="q" id="q" aria-label="Play the clip again">?</button>
-    <div class="qhint" id="qhint">Tap ? to hear it again</div>
+    <button class="q" id="q" aria-label="Play or pause the clip">?</button>
+    <div class="qhint" id="qhint">The clip loops until you answer. Tap ? to pause.</div>
     <div class="answers">
       <button class="ansA" id="ansA">It was the <span class="lA">Real amp</span></button>
       <button class="ansB" id="ansB">It was the <span class="lB">NAM capture</span></button>
@@ -180,18 +180,26 @@ function buildDeck(len) {
 }
 
 /* ---------- playback: one clip with short fades, replay on tap ---------- */
-function stop() { if (S.src) { try { S.src.stop(); } catch (e) {} S.src = null; } $('#q').classList.remove('playing'); }
+const GAP = 0.4;   // seconds of silence between repeats
+function stop() { S.loopId = (S.loopId || 0) + 1; if (S.src) { try { S.src.stop(); } catch (e) {} S.src = null; } $('#q').classList.remove('playing'); }
 function play() {
-  stop(); const [start, len] = S.cur.clip, buf = buffers[S.cur.file];
-  const g = ctx.createGain(), s = ctx.createBufferSource(), t = ctx.currentTime + 0.02, f = 0.015;
-  s.buffer = buf; s.connect(g); g.connect(ctx.destination);
-  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(1, t + f);
-  g.gain.setValueAtTime(1, t + len - f); g.gain.linearRampToValueAtTime(0, t + len);
-  s.start(t, start, len); S.src = s; S.playStart = t; S.cur.plays++;
-  $('#q').classList.add('playing'); $('#tState').textContent = 'listening…';
-  s.onended = () => { if (S.src === s) { S.src = null; $('#q').classList.remove('playing'); $('#tState').textContent = 'which was it?'; } };
+  stop(); const id = S.loopId, [start, len] = S.cur.clip, buf = buffers[S.cur.file], f = 0.015;
+  $('#q').classList.add('playing'); $('#tState').textContent = 'looping, tap ? to pause';
+  const once = t => {
+    if (id !== S.loopId) return;
+    const g = ctx.createGain(), s = ctx.createBufferSource();
+    s.buffer = buf; s.connect(g); g.connect(ctx.destination);
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(1, t + f);
+    g.gain.setValueAtTime(1, t + len - f); g.gain.linearRampToValueAtTime(0, t + len);
+    s.start(t, start, len); S.src = s; S.cur.plays++;
+    s.onended = () => { if (id === S.loopId) once(Math.max(ctx.currentTime + 0.02, t + len + GAP)); };
+  };
+  once(ctx.currentTime + 0.02);
 }
-$('#q').onclick = () => { if (S.cur && !S.cur.done) play(); };
+$('#q').onclick = () => {
+  if (!S.cur || S.cur.done) return;
+  if (S.src) { stop(); $('#tState').textContent = 'paused, tap ? to play'; } else play();
+};
 
 function nextTrial() {
   stop();
