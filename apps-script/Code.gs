@@ -1,3 +1,4 @@
+/** @OnlyCurrentDoc */
 // Google Apps Script: receives blind-test results and appends them to this spreadsheet.
 // Setup steps are in SETUP.md. Paste this whole file into Extensions > Apps Script.
 
