@@ -44,10 +44,15 @@ ul.how li{margin:4px 0}
 .answers .ansA{border-color:var(--a)} .answers .ansB{border-color:var(--b)}
 .recorded{text-align:center;color:var(--muted);min-height:24px;margin-top:12px}
 .score{font-size:44px;font-weight:800;line-height:1.1}
-.verdict{font-size:19px;margin:8px 0 4px}
-.dots{margin:14px 0 4px}
-.dots span{display:inline-block;width:14px;height:14px;border-radius:50%;margin:3px}
-.dots .ok{background:var(--ok)} .dots .bad{background:var(--bad)}
+.score small{font-size:22px;font-weight:600;color:var(--muted)}
+h3{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:22px 0 6px}
+table{border-collapse:collapse;width:100%;font-size:14px}
+td,th{padding:6px 8px 6px 0;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{color:var(--muted);font-weight:500}
+.stats{margin-top:14px} .stats td:first-child{color:var(--muted)} .stats td:last-child{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.clips td,.clips th{white-space:nowrap;font-variant-numeric:tabular-nums}
+.tblwrap{overflow-x:auto}
+.ok{color:var(--ok);font-weight:700} .bad{color:var(--bad);font-weight:700}
 .sent{color:var(--ok);font-weight:600;margin-top:12px}
 .err{color:var(--bad);margin-top:12px}
 @media(max-width:420px){.answers{grid-template-columns:1fr}}
@@ -56,7 +61,7 @@ ul.how li{margin:4px 0}
 <body>
 <main>
   <h1>Amp Blind Test</h1>
-  <p class="sub" id="subtitle">Real amp or NAM capture? Let's find out if you can really hear it.</p>
+  <p class="sub" id="subtitle">Blind listening test.</p>
 
   <!-- intro -->
   <section class="card" id="intro">
@@ -96,10 +101,9 @@ ul.how li{margin:4px 0}
   <!-- result -->
   <section class="card" id="result" hidden>
     <div class="score" id="score"></div>
-    <div class="verdict" id="verdict"></div>
-    <div class="note" id="pnote"></div>
-    <div class="dots" id="dots"></div>
-    <div class="note">Green = right, red = wrong. Hover or tap a dot for details.</div>
+    <table class="stats" id="stats"></table>
+    <h3>Each clip</h3>
+    <div class="tblwrap"><table class="clips" id="clips"></table></div>
     <label for="notes">Notes: what did you listen for? Anything stand out?</label>
     <textarea id="notes" placeholder="e.g. the real amp felt brighter on the palm mutes, but I was mostly guessing…"></textarea>
     <button class="primary" id="send">Send my result</button>
@@ -116,7 +120,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const LBL = C.labels;
 document.querySelectorAll('.lA').forEach(e => e.textContent = LBL.A);
 document.querySelectorAll('.lB').forEach(e => e.textContent = LBL.B);
-$('#subtitle').textContent = `${LBL.A} or ${LBL.B}? Let's find out if you can really hear it.`;
+$('#subtitle').textContent = `Blind listening test: ${LBL.A} vs ${LBL.B}.`;
 $('#nTrials').textContent = C.trials;
 
 const truth = JSON.parse(atob(C.key.split('').reverse().join('')));
@@ -220,19 +224,37 @@ addEventListener('keydown', e => {
 /* ---------- result ---------- */
 function pval(n, c) { let p = 0, comb = 1; for (let i = 0; i <= n; i++) { if (i >= c) p += comb; comb = comb * (n - i) / (i + 1); } return p / Math.pow(2, n); }
 let summary;
+function wilson(c, n, z = 1.96) {
+  if (!n) return [0, 0]; const ph = c / n, d = 1 + z * z / n, m = ph + z * z / (2 * n), w = z * Math.sqrt(ph * (1 - ph) / n + z * z / (4 * n * n));
+  return [(m - w) / d, (m + w) / d];
+}
+const pct = x => Math.round(100 * x) + '%';
 function finish() {
   stop(); $('#trial').hidden = true; $('#result').hidden = false;
-  const n = S.results.length, c = S.results.filter(r => r.ok).length, p = pval(n, c);
-  const v = p < 0.01 ? 'You can clearly hear the difference.'
-    : p < 0.05 ? 'You can hear a difference. That score is very unlikely by guessing.'
-    : c / n > 0.6 ? 'Better than a coin flip, but not enough to prove you can hear it.'
-    : 'No evidence you can tell them apart. That is about what guessing gets.';
-  $('#score').textContent = `${c} / ${n}`;
-  $('#verdict').textContent = v;
-  $('#pnote').textContent = `Chance of doing this well by pure guessing: ${(p * 100).toFixed(1)}%`;
-  $('#dots').innerHTML = S.results.map((r, i) => `<span class="${r.ok ? 'ok' : 'bad'}" title="Clip ${i + 1}: it was the ${LBL[r.truth]}, you said ${LBL[r.guess]}"></span>`).join('');
-  summary = { name: $('#name').value.trim(), setup: $('#setup').value, correct: c, trials: n, percent: Math.round(100 * c / n), p: +p.toFixed(4), verdict: v,
-    detail: S.results.map((r, i) => `${i + 1}@${r.clip}s ${LBL[r.truth]}→${LBL[r.guess]}${r.ok ? ' ✓' : ' ✗'} (${r.plays}x, ${r.secs}s)`).join('; '),
+  const R = S.results, n = R.length, c = R.filter(r => r.ok).length, p = pval(n, c), [lo, hi] = wilson(c, n);
+  let need = n + 1; for (let k = 0; k <= n; k++) if (pval(n, k) < 0.05) { need = k; break; }
+  const of = x => { const rs = R.filter(r => r.truth === x), k = rs.filter(r => r.ok).length; return [k, rs.length]; };
+  const [ca, na] = of('A'), [cb, nb] = of('B');
+  const saidA = R.filter(r => r.guess === 'A').length;
+  const avg = f => n ? (R.reduce((a, r) => a + f(r), 0) / n) : 0;
+  $('#score').innerHTML = `${c} / ${n} <small>correct · ${pct(c / n)}</small>`;
+  const rows = [
+    ['p-value (chance of ≥ ' + c + '/' + n + ' by guessing)', p.toFixed(4)],
+    ['Correct needed for p < 0.05', need <= n ? `${need} / ${n}` : 'n/a'],
+    ['95% confidence interval for accuracy', `${pct(lo)} – ${pct(hi)}`],
+    [`When it was the ${LBL.A}`, `${ca} / ${na}${na ? ' (' + pct(ca / na) + ')' : ''}`],
+    [`When it was the ${LBL.B}`, `${cb} / ${nb}${nb ? ' (' + pct(cb / nb) + ')' : ''}`],
+    [`Answered ${LBL.A} / ${LBL.B}`, `${saidA} / ${n - saidA}`],
+    ['Average plays per clip', avg(r => r.plays).toFixed(1)],
+    ['Average time per answer', avg(r => r.secs).toFixed(1) + ' s'],
+  ];
+  $('#stats').innerHTML = rows.map(r => `<tr><td>${r[0]}</td><td>${r[1]}</td></tr>`).join('');
+  const t = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+  $('#clips').innerHTML = '<tr><th>#</th><th>Clip at</th><th>It was</th><th>You said</th><th></th><th>Plays</th><th>Time</th></tr>' +
+    R.map((r, i) => `<tr><td>${i + 1}</td><td>${t(r.clip)}</td><td>${LBL[r.truth]}</td><td>${LBL[r.guess]}</td><td class="${r.ok ? 'ok' : 'bad'}">${r.ok ? '✓' : '✗'}</td><td>${r.plays}</td><td>${r.secs} s</td></tr>`).join('');
+  const stat = `p=${p.toFixed(4)} · 95% CI ${pct(lo)}–${pct(hi)} · ${LBL.A} ${ca}/${na} · ${LBL.B} ${cb}/${nb} · answered ${LBL.A} ${saidA}x · avg plays ${avg(r => r.plays).toFixed(1)}`;
+  summary = { name: $('#name').value.trim(), setup: $('#setup').value, correct: c, trials: n, percent: Math.round(100 * c / n), p: +p.toFixed(4), verdict: stat,
+    detail: R.map((r, i) => `${i + 1}@${t(r.clip)} ${LBL[r.truth]}→${LBL[r.guess]}${r.ok ? ' ✓' : ' ✗'} (${r.plays}x, ${r.secs}s)`).join('; '),
     ua: navigator.userAgent.slice(0, 200) };
   if (!C.sheetUrl) { $('#send').textContent = 'Copy my result'; }
 }
