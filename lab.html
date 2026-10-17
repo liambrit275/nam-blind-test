@@ -1,0 +1,505 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NAM Blind Test</title>
+<style>
+:root{--bg:#121417;--panel:#1b1f24;--line:#2b313a;--fg:#e6e9ee;--muted:#8b94a3;--acc:#4fd1c5;
+  --a:#5b9cf6;--b:#f6a35b;--x:#c78bff;--d:#ff6b6b;--ok:#4caf7d;--bad:#e05d5d}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.45 -apple-system,system-ui,"Segoe UI",sans-serif}
+header{padding:12px 20px;border-bottom:1px solid var(--line);display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+h1{font-size:17px;margin:0}
+header span{color:var(--muted);font-size:12px}
+main{max-width:1100px;margin:0 auto;padding:14px 20px;display:grid;gap:12px}
+section{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 16px}
+h2{font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin:0 0 10px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:720px){.grid2{grid-template-columns:1fr}}
+label{color:var(--muted);font-size:12px}
+input[type=file],select{color:var(--fg);background:#0f1215;border:1px solid var(--line);border-radius:6px;padding:6px;max-width:100%}
+input[type=number],input[type=text]{width:80px;background:#0f1215;color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:5px}
+input[type=range]{width:160px;accent-color:var(--acc)}
+button{background:#262c35;color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:8px 14px;font:inherit;cursor:pointer}
+button:hover{background:#2f3641}
+button:disabled{opacity:.4;cursor:default}
+button.primary{background:var(--acc);color:#07201d;border-color:transparent;font-weight:600}
+.big{font-size:20px;font-weight:700;padding:16px 0;min-width:96px;border-width:2px}
+.big.on{outline:3px solid currentColor}
+#bA{color:var(--a)} #bB{color:var(--b)} #bX{color:var(--x)} #bD{color:var(--d)}
+.big kbd{display:block;font:11px monospace;color:var(--muted);font-weight:400;margin-top:4px}
+.meter{font-family:ui-monospace,Menlo,monospace;font-size:13px}
+.meter td{padding:2px 14px 2px 0;color:var(--muted)}
+.meter td:nth-child(2){color:var(--fg)}
+.ladder button{padding:8px 10px;min-width:58px}
+.ladder button.on{background:var(--x);color:#1a0b2e;border-color:transparent;font-weight:600}
+#wave{width:100%;height:110px;display:block;border-radius:6px;background:#0d0f12;cursor:crosshair}
+#status{color:var(--acc);font-size:13px;min-height:18px}
+.warn{color:var(--b)}
+.guess button{font-size:16px;padding:12px 20px}
+.fb{font-weight:700;min-height:22px}
+.fb.ok{color:var(--ok)} .fb.bad{color:var(--bad)}
+table.res{border-collapse:collapse;font-size:13px}
+table.res th,table.res td{padding:4px 12px 4px 0;text-align:left;border-bottom:1px solid var(--line)}
+table.res th{color:var(--muted);font-weight:500}
+.dots span{display:inline-block;width:10px;height:10px;border-radius:50%;margin:2px}
+.dots .ok{background:var(--ok)} .dots .bad{background:var(--bad)}
+.hint{color:var(--muted);font-size:12px}
+details summary{cursor:pointer;color:var(--muted);font-size:12px}
+.trialCard{border:2px solid var(--x);border-radius:12px;padding:16px;background:#1a1522;transition:background .2s}
+.trialCard.flash{background:#2b2240}
+.trialHead{display:flex;justify-content:space-between;font-size:18px;font-weight:700}
+.trialHead span:last-child{color:var(--x);font-weight:500}
+.trialBar{height:6px;background:#0d0f12;border-radius:3px;margin-top:8px;overflow:hidden}
+.trialBar div{height:100%;background:var(--x);width:0}
+.verdict{font-size:18px;line-height:1.5;padding:14px;border-radius:10px;background:#0f1215;border:1px solid var(--line)}
+.verdict b{font-size:26px}
+#tX{min-width:140px;font-size:28px;color:var(--x)} #tA{color:var(--a)} #tB{color:var(--b)}
+details#explore{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 16px}
+details#explore section{border:none;padding:0}
+</style>
+
+</head>
+<body>
+<header><h1>NAM Blind Test</h1><span>ABX · loudness-matched · sample-aligned null test · difference ladder</span></header>
+<main>
+
+<section id="load">
+  <h2>1 · Files</h2>
+  <div class="grid2">
+    <div><label>A — reference (e.g. real amp with mic)</label><br>
+      <select id="selA" hidden></select><input type="file" id="fileA" accept="audio/*"><br><label>Call it</label> <input type="text" id="labA" value="Real amp" style="width:140px"></div>
+    <div><label>B — candidate (e.g. NAM capture)</label><br>
+      <select id="selB" hidden></select><input type="file" id="fileB" accept="audio/*"><br><label>Call it</label> <input type="text" id="labB" value="NAM capture" style="width:140px"></div>
+  </div>
+  <div class="row" style="margin-top:10px">
+    <button class="primary" id="btnLoad">Load &amp; analyse</button>
+    <div id="status"></div>
+  </div>
+</section>
+
+<section id="analysis" hidden>
+  <h2>2 · Match &amp; null</h2>
+  <div class="grid2">
+    <table class="meter" id="meter"></table>
+    <div>
+      <div class="row"><label>Fine trim on B</label><input type="range" id="trim" min="-3" max="3" step="0.05" value="0"><span id="trimV" class="meter">0.00 dB</span>
+        <button id="trimReset" title="back to LUFS match">reset</button></div>
+      <div class="row" style="margin-top:6px"><label>Offset override (samples)</label><input type="number" id="offIn" step="1"><button id="offApply">apply</button>
+        <label><input type="checkbox" id="polIn"> invert B polarity</label>
+        <label><input type="checkbox" id="subIn" checked> sub-sample align</label></div>
+      <div class="row" style="margin-top:6px"><label>Diff playback boost</label><input type="range" id="boost" min="0" max="48" step="1" value="24"><span id="boostV" class="meter">+24 dB</span></div>
+      <div class="row" style="margin-top:6px"><button id="btnExport">Download residual WAV</button><button id="btnSwap">Swap A/B</button></div>
+      <p class="hint">B is time-aligned to A by cross-correlation, polarity-checked, then gain-matched by integrated loudness (ITU-R BS.1770). Residual = B − A. ESR is NAM's own training error metric (Σ(B−A)² / ΣA²).</p>
+    </div>
+  </div>
+</section>
+
+<section id="test" hidden>
+  <h2>3 · Blind test</h2>
+  <div id="testSetup">
+    <div class="row">
+      <label>Trials</label><select id="tTrials"><option>10</option><option selected>16</option><option>20</option><option>30</option></select>
+      <label>Clip length</label><select id="tLen"><option value="3">3 s</option><option value="5">5 s</option><option value="10" selected>10 s</option><option value="20">20 s</option><option value="loop">my loop region</option></select>
+      <label>Difference</label><select id="tK"></select>
+    </div>
+    <div class="row" style="margin-top:10px"><button class="primary" id="btnStart" style="font-size:16px;padding:12px 22px">Start test</button>
+      <span class="hint">Each trial plays a random section of one of the two, hidden. You say which. No feedback until the end, then score and p-value.</span></div>
+  </div>
+  <div id="testRun" hidden>
+    <div class="trialCard" id="trialCard">
+      <div class="trialHead"><span id="trialLbl">Trial 1 of 16</span><span id="trialState">new clip…</span></div>
+      <div class="trialBar"><div id="trialProg"></div></div>
+      <div class="row" style="margin-top:12px;justify-content:center;gap:14px">
+        <button class="big" id="tX">?<kbd>hidden clip — space pauses</kbd></button>
+      </div>
+      <div class="row guess" style="margin-top:16px;justify-content:center">
+        <button id="ansA">It was the <span class="lA">A</span> <kbd>[</kbd></button>
+        <button id="ansB">It was the <span class="lB">B</span> <kbd>]</kbd></button>
+      </div>
+      <div class="fb" id="tfb" style="text-align:center;margin-top:10px;font-size:18px"></div>
+      <div class="row" style="justify-content:center;margin-top:8px"><button id="btnAbort">Stop test</button><label>Volume</label><input type="range" id="vol" min="0" max="1" step="0.01" value="0.8"></div>
+    </div>
+  </div>
+  <div id="testDone" hidden>
+    <div class="verdict" id="verdict"></div>
+    <div class="row" style="margin-top:10px"><button class="primary" id="btnAgain">Run another test</button></div>
+  </div>
+  <div style="margin-top:14px">
+    <table class="res" id="resTable"></table>
+    <p class="hint">p = chance of scoring at least this well by guessing (one-sided binomial). Under 0.05 means you can hear it. Rule of thumb: 8/10, 12/16, 15/20.</p>
+    <div class="row"><button id="btnReset">Clear history</button><button id="btnCsv">Export CSV</button></div>
+  </div>
+</section>
+
+<details id="explore" hidden>
+  <summary>Explore freely (not a test): A / B / hidden X / difference signal, waveform, loop region</summary>
+  <section style="margin-top:8px">
+  <canvas id="wave" height="110"></canvas>
+  <div class="row" style="margin-top:8px">
+    <button id="btnPlay" class="primary">Play</button>
+    <span class="meter" id="time">0:00.0</span>
+    <button id="loopAll">Loop: whole file</button>
+    <span class="hint">Click waveform to seek · drag to set a loop region (also usable as the test clip) · all sources run in sync, switching is a 5 ms crossfade</span>
+  </div>
+  <div class="row" style="margin-top:10px">
+    <button class="big" id="bA"><span class="lA">A</span><kbd>1 / A</kbd></button>
+    <button class="big" id="bB"><span class="lB">B</span><kbd>2 / B</kbd></button>
+    <button class="big" id="bX">X<kbd>3 / X</kbd></button>
+    <button class="big" id="bD">Diff<kbd>4 / D</kbd></button>
+    <button id="bNewX">New hidden X</button>
+    <span class="hint" id="selInfo"></span>
+  </div>
+  <div style="margin-top:12px">
+    <label>Difference amount: B and X play A + k·(B − A). 1× = the real B file; other values scale the difference up or down.</label>
+    <div class="row ladder" id="ladder" style="margin-top:4px"></div>
+  </div>
+  </section>
+</details>
+
+<details><summary>Keyboard · method notes</summary>
+<p class="hint">Space play/pause · 1/2/3 or A/B/X select source (4/D = difference signal in Explore) · [ = it was A · ] = it was B.<br>
+Level matching uses integrated LUFS so the comparison tests tone, not volume (0.1 dB mismatches are reliably heard as "better"). Alignment is to the nearest sample; sub-sample error limits how deep the null can go at high frequencies, so treat the residual number as an upper bound on the real difference. A single input only tests the model for that playing; dynamic/nonlinear behaviour on other material can differ.</p>
+</details>
+</main>
+
+<script>
+'use strict';
+const $=s=>document.querySelector(s);
+const AC=window.AudioContext||window.webkitAudioContext;
+const ctx=new AC();
+const KS=[8,4,2,1,0.5,0.25,0.125];
+const T={active:false}; // blind-test state, filled in below
+const lbl=w=>w==='A'?($('#labA').value.trim()||'A'):w==='B'?($('#labB').value.trim()||'B'):w;
+function applyLabels(){ document.querySelectorAll('.lA').forEach(e=>e.textContent=lbl('A')); document.querySelectorAll('.lB').forEach(e=>e.textContent=lbl('B')); }
+$('#labA').oninput=applyLabels; $('#labB').oninput=applyLabels;
+const st={A:null,B:null,nameA:'A',nameB:'B',sr:ctx.sampleRate,n:0,ch:2,
+  Aw:null,Braw:null,Bw:null,D:null,lufsA:0,lufsB:0,matchDb:0,trim:0,offset:0,frac:0,pol:1,esr:0,
+  bufA:null,bufB:null,bufD:null,k:1,boost:24,
+  playing:false,pos:0,t0:0,startPos:0,loopStart:0,loopEnd:0,sel:'A',src:[],
+  trial:null,results:[],trialNo:1,waveA:null};
+const master=ctx.createGain(); master.gain.value=0.8; master.connect(ctx.destination);
+const gA=ctx.createGain(), gB=ctx.createGain(), gD=ctx.createGain();
+[gA,gB,gD].forEach(g=>{g.gain.value=0; g.connect(master)}); gA.gain.value=1;
+const status=m=>{$('#status').textContent=m};
+const db=x=>20*Math.log10(Math.max(x,1e-12));
+const fmt=(x,d=2)=>x.toFixed(d);
+const tick=()=>new Promise(r=>setTimeout(r,0));
+
+/* ---------- loading ---------- */
+async function listServer(){
+  try{const r=await fetch('/audio/'); if(!r.ok) return; const j=await r.json();
+    for(const [sel,file,def] of [[$('#selA'),$('#fileA'),/amp|real|mic|ref/i],[$('#selB'),$('#fileB'),/nam|capture|model|profile/i]]){
+      sel.hidden=false; file.hidden=true;
+      j.files.forEach(f=>{const o=document.createElement('option');o.value=f;o.textContent=f;sel.appendChild(o)});
+      const m=j.files.findIndex(f=>def.test(f)); if(m>=0) sel.selectedIndex=m;
+    }
+    if(j.files.length>=2 && $('#selA').value===$('#selB').value){$('#selB').selectedIndex=($('#selA').selectedIndex+1)%j.files.length}
+    status(`Server folder: ${j.dir} (${j.files.length} files)`);
+  }catch(e){}
+}
+async function getBuf(which){
+  const sel=$('#sel'+which), file=$('#file'+which);
+  let ab,name;
+  if(!sel.hidden){ name=sel.value; if(!name) throw new Error('choose file '+which); status('Fetching '+name+'…'); ab=await (await fetch('/audio/'+encodeURIComponent(name))).arrayBuffer(); }
+  else { const f=file.files[0]; if(!f) throw new Error('choose file '+which); name=f.name; status('Reading '+name+'…'); ab=await f.arrayBuffer(); }
+  status('Decoding '+name+'…'); const buf=await ctx.decodeAudioData(ab); return {buf,name};
+}
+$('#btnLoad').onclick=async()=>{
+  try{
+    $('#btnLoad').disabled=true; stopAll();
+    const a=await getBuf('A'), b=await getBuf('B');
+    st.A=a.buf; st.B=b.buf; st.nameA=a.name; st.nameB=b.name;
+    if(/nam|capture|model|profile|tonex/i.test(a.name)&&!/nam|capture|model|profile|tonex/i.test(b.name)){$('#labA').value='NAM capture';$('#labB').value='Real amp';}
+    else if(/amp|mic|real/i.test(a.name)&&/nam|capture|model|profile|tonex/i.test(b.name)){$('#labA').value='Real amp';$('#labB').value='NAM capture';}
+    await analyse();
+  }catch(e){status('Error: '+e.message); console.error(e)}
+  $('#btnLoad').disabled=false;
+};
+$('#btnSwap').onclick=async()=>{ if(!st.A) return; stopAll(); [st.A,st.B]=[st.B,st.A]; [st.nameA,st.nameB]=[st.nameB,st.nameA]; const la=$('#labA').value;$('#labA').value=$('#labB').value;$('#labB').value=la; st.trim=0; $('#trim').value=0; await analyse(); };
+
+/* ---------- analysis ---------- */
+async function analyse(opts={}){
+  const A=st.A,B=st.B; st.sr=A.sampleRate; st.n=Math.min(A.length,B.length); st.ch=Math.min(A.numberOfChannels,B.numberOfChannels);
+  const n=st.n,ch=st.ch,sr=st.sr;
+  status('Aligning…'); await tick();
+  st.Aw=[]; st.Braw=[];
+  for(let c=0;c<ch;c++){st.Aw.push(A.getChannelData(c).subarray(0,n)); st.Braw.push(B.getChannelData(c).subarray(0,n));}
+  const mA=mono(st.Aw), mB=mono(st.Braw);
+  if(opts.offset===undefined){ const al=align(mA,mB,sr); st.offset=al.lag; st.frac=$('#subIn').checked?al.frac:0; st.pol=al.pol; }
+  $('#offIn').value=st.offset; $('#polIn').checked=st.pol<0;
+  st.Bw=[]; for(let c=0;c<ch;c++){ const s=st.Braw[c], L=st.offset, p=st.pol;
+    if(st.frac){ st.Bw.push(fracShift(s,L,st.frac,p,n)); continue; }
+    const o=new Float32Array(n); const i0=Math.max(0,-L), i1=Math.min(n,n-L); for(let i=i0;i<i1;i++) o[i]=p*s[i+L]; st.Bw.push(o); }
+  status('Measuring loudness…'); await tick();
+  st.lufsA=lufs(st.Aw,sr); st.lufsB=lufs(st.Bw,sr); st.matchDb=st.lufsA-st.lufsB;
+  st.waveA=peaks(mA, 1200); st.waveNorm=0;
+  buildDiff(); buildBuffers(); await tick();
+  st.loopStart=0; st.loopEnd=n/sr; st.pos=0;
+  $('#analysis').hidden=false; $('#test').hidden=false; $('#explore').hidden=false; st.mA=mA;
+  drawWave(); renderLadder(); renderKSelect(); newTrial(); renderResults(); applyLabels();
+  status(`Loaded. A: ${st.nameA} · B: ${st.nameB} · ${fmt(n/sr,1)} s · ${sr} Hz · ${ch} ch`);
+}
+function mono(chs){const n=chs[0].length,o=new Float32Array(n);for(const c of chs)for(let i=0;i<n;i++)o[i]+=c[i];const g=1/chs.length;for(let i=0;i<n;i++)o[i]*=g;return o;}
+function peaks(m,w){const n=m.length,per=n/w,o=new Float32Array(w*2);for(let x=0;x<w;x++){let lo=1e9,hi=-1e9;const s=Math.floor(x*per),e=Math.min(n,Math.floor((x+1)*per));for(let i=s;i<e;i++){const v=m[i];if(v<lo)lo=v;if(v>hi)hi=v}o[2*x]=lo;o[2*x+1]=hi}return o;}
+
+function align(mA,mB,sr){
+  const n=mA.length, maxLag=Math.round(0.1*sr), win=Math.min(Math.round(3*sr), n);
+  // choose the loudest 3 s window of A in the first 60 s
+  let bestE=-1,start=0; const limit=Math.min(n,Math.round(60*sr));
+  for(let s=maxLag; s+win+maxLag<=limit; s+=Math.round(sr)){let e=0;for(let i=s;i<s+win;i++)e+=mA[i]*mA[i];if(e>bestE){bestE=e;start=s}}
+  if(bestE<0) start=0;
+  const corr=(L,step)=>{let c=0;const i0=Math.max(start,-L),i1=Math.min(start+win,n-L);for(let i=i0;i<i1;i+=step)c+=mA[i]*mB[i+L];return c;};
+  // coarse (4-sample decimated) then refine
+  const dec=4; let best=0,bestC=0;
+  for(let L=-maxLag;L<=maxLag;L+=dec){const c=corr(L,dec);if(Math.abs(c)>Math.abs(bestC)){bestC=c;best=L}}
+  let fine=best,fineC=bestC;
+  for(let L=best-dec*2;L<=best+dec*2;L++){const c=corr(L,1);if(Math.abs(c)>Math.abs(fineC)){fineC=c;fine=L}}
+  const pol=fineC<0?-1:1;
+  // parabolic interpolation of the correlation peak -> sub-sample offset
+  const cm=pol*corr(fine-1,1),c0=pol*fineC,cp=pol*corr(fine+1,1), den=cm-2*c0+cp;
+  let frac=den<0?0.5*(cm-cp)/den:0; if(!(Math.abs(frac)<0.5)) frac=0;
+  return {lag:fine,frac,pol,corr:fineC};
+}
+function fracShift(src,L,frac,pol,n){ // out[i] = pol * src(i + L + frac), windowed-sinc interpolation
+  const o=new Float32Array(n); const N=16, taps=new Float64Array(2*N+1); let sum=0;
+  for(let j=-N;j<=N;j++){const t=frac-j; const sinc=t===0?1:Math.sin(Math.PI*t)/(Math.PI*t); const w=0.5+0.5*Math.cos(Math.PI*(j-frac)/(N+1)); taps[j+N]=sinc*w; sum+=sinc*w;}
+  for(let j=0;j<taps.length;j++) taps[j]/=sum;
+  const i0=Math.max(0,-L+N), i1=Math.min(n,n-L-N-1);
+  for(let i=i0;i<i1;i++){let acc=0;const m=i+L;for(let j=-N;j<=N;j++)acc+=src[m+j]*taps[j+N];o[i]=pol*acc;}
+  return o;
+}
+
+function kCoefs(sr){
+  let f0=1681.974450955533,G=3.999843853973347,Q=0.7071752369554196;
+  let K=Math.tan(Math.PI*f0/sr),Vh=Math.pow(10,G/20),Vb=Math.pow(Vh,0.4996667741545416),a0=1+K/Q+K*K;
+  const s={b0:(Vh+Vb*K/Q+K*K)/a0,b1:2*(K*K-Vh)/a0,b2:(Vh-Vb*K/Q+K*K)/a0,a1:2*(K*K-1)/a0,a2:(1-K/Q+K*K)/a0};
+  f0=38.13547087602444;Q=0.5003270373238773;K=Math.tan(Math.PI*f0/sr);a0=1+K/Q+K*K;
+  const h={b0:1,b1:-2,b2:1,a1:2*(K*K-1)/a0,a2:(1-K/Q+K*K)/a0};
+  return [s,h];
+}
+function lufs(chs,sr){ // ITU-R BS.1770-4 integrated loudness with absolute + relative gating
+  const [s,h]=kCoefs(sr), n=chs[0].length, hop=Math.round(0.1*sr), nh=Math.floor(n/hop);
+  if(nh<4) return -70;
+  const hp=new Float64Array(nh);
+  for(const x of chs){
+    let x1=0,x2=0,y1=0,y2=0,u1=0,u2=0,v1=0,v2=0;
+    for(let j=0;j<nh;j++){let acc=0;const e=(j+1)*hop;
+      for(let i=j*hop;i<e;i++){const xi=x[i];
+        const y=s.b0*xi+s.b1*x1+s.b2*x2-s.a1*y1-s.a2*y2; x2=x1;x1=xi;y2=y1;y1=y;
+        const v=h.b0*y+h.b1*u1+h.b2*u2-h.a1*v1-h.a2*v2; u2=u1;u1=y;v2=v1;v1=v;
+        acc+=v*v;}
+      hp[j]+=acc;}
+  }
+  const nb=nh-3, ms=new Float64Array(nb), Lb=new Float64Array(nb);
+  for(let j=0;j<nb;j++){ms[j]=(hp[j]+hp[j+1]+hp[j+2]+hp[j+3])/(4*hop); Lb[j]=-0.691+10*Math.log10(ms[j]+1e-30);}
+  let sum=0,cnt=0; for(let j=0;j<nb;j++) if(Lb[j]>-70){sum+=ms[j];cnt++}
+  if(!cnt) return -70;
+  const rel=-0.691+10*Math.log10(sum/cnt)-10;
+  sum=0;cnt=0; for(let j=0;j<nb;j++) if(Lb[j]>-70&&Lb[j]>rel){sum+=ms[j];cnt++}
+  return cnt? -0.691+10*Math.log10(sum/cnt) : -70;
+}
+
+function buildDiff(){
+  const g=Math.pow(10,(st.matchDb+st.trim)/20), n=st.n; st.D=[]; let sd=0,sa=0,pk=0;
+  for(let c=0;c<st.ch;c++){const a=st.Aw[c],b=st.Bw[c],d=new Float32Array(n);
+    for(let i=0;i<n;i++){const v=g*b[i]-a[i];d[i]=v;sd+=v*v;sa+=a[i]*a[i];const av=Math.abs(v);if(av>pk)pk=av;}
+    st.D.push(d);}
+  st.esr=sd/Math.max(sa,1e-30); st.diffPeak=pk; st.gainLin=g;
+  st.lufsD=lufs(st.D,st.sr);
+  renderMeter();
+}
+function buildBuffers(){
+  const {n,ch,sr}=st;
+  if(!st.bufA){st.bufA=ctx.createBuffer(ch,n,sr); st.bufB=ctx.createBuffer(ch,n,sr); st.bufD=ctx.createBuffer(ch,n,sr);}
+  if(st.bufA.length!==n||st.bufA.numberOfChannels!==ch){st.bufA=ctx.createBuffer(ch,n,sr); st.bufB=ctx.createBuffer(ch,n,sr); st.bufD=ctx.createBuffer(ch,n,sr);}
+  for(let c=0;c<ch;c++){st.bufA.copyToChannel(st.Aw[c],c); st.bufD.copyToChannel(st.D[c],c);}
+  fillBk();
+}
+function fillBk(){
+  const k=st.k; let pk=0;
+  for(let c=0;c<st.ch;c++){const o=st.bufB.getChannelData(c),a=st.Aw[c],d=st.D[c];
+    for(let i=0;i<st.n;i++){const v=a[i]+k*d[i];o[i]=v;const av=Math.abs(v);if(av>pk)pk=av;}}
+  st.bkPeak=pk; renderMeter();
+}
+function renderMeter(){
+  const rows=[
+    ['A loudness',`${fmt(st.lufsA,2)} LUFS`],
+    ['B loudness (aligned)',`${fmt(st.lufsB,2)} LUFS`],
+    ['Gain applied to B',`${fmt(st.matchDb+st.trim,2)} dB${st.trim?` (match ${fmt(st.matchDb,2)} + trim ${fmt(st.trim,2)})`:''}`],
+    ['Alignment',`B shifted ${(st.offset+st.frac)>0?'earlier':'later'} by ${fmt(Math.abs(st.offset+st.frac),2)} samples (${fmt(Math.abs(st.offset+st.frac)/st.sr*1000,3)} ms)${st.pol<0?' · polarity inverted':''}`],
+    ['Null residual (B − A)',`${fmt(10*Math.log10(st.esr+1e-30),1)} dB rel. A · ESR ${st.esr.toExponential(2)}`],
+    ['Residual loudness',`${fmt(st.lufsD,1)} LUFS (${fmt(st.lufsD-st.lufsA,1)} LU below A)`],
+    ['At current k = '+kLabel(st.k),`difference ${fmt(10*Math.log10(st.esr*st.k*st.k+1e-30),1)} dB rel. A`],
+    ['Peaks',`diff ${fmt(db(st.diffPeak),1)} dBFS · B(k) ${fmt(db(st.bkPeak||0),1)} dBFS${(st.bkPeak||0)>1?' <span class="warn">CLIPPING — lower k or volume</span>':''}`],
+  ];
+  $('#meter').innerHTML=rows.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td></tr>`).join('');
+}
+const kLabel=k=>k>=1?`${k}×`:({0.5:'½',0.25:'¼',0.125:'⅛'}[k]||k);
+function renderLadder(){
+  $('#ladder').innerHTML=KS.map(k=>`<button data-k="${k}" class="${k===st.k?'on':''}">${kLabel(k)}${k===1?' (real)':''}</button>`).join('');
+  $('#ladder').querySelectorAll('button').forEach(b=>b.onclick=()=>setK(+b.dataset.k));
+}
+function setK(k){ if(k===st.k) return; const p=curPos(); stopSources(); st.k=k; fillBk(); renderLadder(); renderKSelect(); if(st.playing) startSources(p); else st.pos=p; newTrial(); }
+
+/* trim / offset / polarity / boost */
+$('#trim').oninput=e=>{st.trim=+e.target.value; $('#trimV').textContent=(st.trim>=0?'+':'')+fmt(st.trim,2)+' dB'; rebuildAfterTrim();};
+let trimTimer; function rebuildAfterTrim(){clearTimeout(trimTimer); trimTimer=setTimeout(()=>{const p=curPos(); stopSources(); buildDiff(); buildBuffers(); if(st.playing) startSources(p); else st.pos=p;},150);}
+$('#trimReset').onclick=()=>{$('#trim').value=0; st.trim=0; $('#trimV').textContent='0.00 dB'; rebuildAfterTrim();};
+$('#offApply').onclick=async()=>{ stopAll(); st.offset=Math.round(+$('#offIn').value||0); st.frac=0; st.pol=$('#polIn').checked?-1:1; await analyse({offset:st.offset}); };
+$('#polIn').onchange=()=>$('#offApply').onclick();
+$('#subIn').onchange=async()=>{ stopAll(); await analyse(); };
+$('#boost').oninput=e=>{st.boost=+e.target.value; $('#boostV').textContent='+'+st.boost+' dB'; if(st.sel==='D') select('D');};
+$('#vol').oninput=e=>master.gain.setTargetAtTime(+e.target.value,ctx.currentTime,0.01);
+
+/* ---------- playback ---------- */
+function startSources(pos){
+  const now=ctx.currentTime+0.03;
+  st.src=[[st.bufA,gA],[st.bufB,gB],[st.bufD,gD]].map(([b,g])=>{const s=ctx.createBufferSource();s.buffer=b;s.loop=true;s.loopStart=st.loopStart;s.loopEnd=st.loopEnd;s.connect(g);s.start(now,pos);return s;});
+  st.t0=now; st.startPos=pos;
+}
+function stopSources(){st.src.forEach(s=>{try{s.stop()}catch(e){}});st.src=[];}
+function stopAll(){stopSources(); st.playing=false; $('#btnPlay').textContent='Play';}
+function curPos(){
+  if(!st.playing) return st.pos;
+  const len=st.loopEnd-st.loopStart; let p=st.startPos+Math.max(0,ctx.currentTime-st.t0);
+  if(p>=st.loopEnd) p=st.loopStart+((p-st.loopEnd)%len);
+  return p;
+}
+function play(){ if(!st.bufA) return; ctx.resume(); let p=st.pos; if(p<st.loopStart||p>=st.loopEnd) p=st.loopStart; startSources(p); st.playing=true; $('#btnPlay').textContent='Pause'; select(st.sel); }
+function pause(){ st.pos=curPos(); stopAll(); }
+$('#btnPlay').onclick=()=>st.playing?pause():play();
+function seek(t){ const was=st.playing; if(was) stopSources(); st.pos=Math.max(0,Math.min(st.n/st.sr-0.01,t)); if(was) startSources(st.pos); }
+function setLoop(a,b){ st.loopStart=Math.max(0,Math.min(a,b)); st.loopEnd=Math.min(st.n/st.sr,Math.max(a,b)); if(st.loopEnd-st.loopStart<0.05){st.loopStart=0;st.loopEnd=st.n/st.sr;} const p=curPos(); if(st.playing){stopSources(); startSources(p>=st.loopStart&&p<st.loopEnd?p:st.loopStart);} else st.pos=p; drawWave(); }
+$('#loopAll').onclick=()=>setLoop(0,st.n/st.sr);
+
+function select(which){
+  if(!st.bufA) return; st.sel=which; ctx.resume();
+  const real=which==='X'?st.trial.x:which;
+  const t={A:0,B:0,D:0}; t[real==='D'?'D':real]=1;
+  const now=ctx.currentTime, boost=Math.pow(10,st.boost/20);
+  [[gA,t.A],[gB,t.B],[gD,t.D*boost]].forEach(([g,v])=>{g.gain.cancelScheduledValues(now);g.gain.setValueAtTime(g.gain.value,now);g.gain.linearRampToValueAtTime(v,now+0.005);});
+  ['A','B','X','D'].forEach(w=>$('#b'+w).classList.toggle('on',!T.active&&w===which));
+  $('#selInfo').textContent=which==='D'?`Hearing B − A boosted +${st.boost} dB`:which==='X'?'Hearing X (hidden)':which==='A'?`Hearing ${lbl('A')}: ${st.nameA}`:`Hearing ${lbl('B')} at ${kLabel(st.k)}: ${st.nameB}`;
+  if(!st.playing) play();
+}
+['A','B','X','D'].forEach(w=>$('#b'+w).onclick=()=>select(w));
+
+/* waveform */
+const cv=$('#wave'), cx=cv.getContext('2d');
+function drawWave(){
+  const W=cv.width=cv.clientWidth*devicePixelRatio, H=cv.height=110*devicePixelRatio; cx.clearRect(0,0,W,H);
+  if(!st.waveA) return; const dur=st.n/st.sr;
+  cx.fillStyle='rgba(79,209,197,.12)'; cx.fillRect(st.loopStart/dur*W,0,(st.loopEnd-st.loopStart)/dur*W,H);
+  cx.fillStyle='#4a5563'; const w=st.waveA.length/2; if(!st.waveNorm){let m=1e-9;for(const v of st.waveA)if(Math.abs(v)>m)m=Math.abs(v);st.waveNorm=0.95/m;}
+  for(let x=0;x<W;x++){const i=Math.floor(x/W*w);const lo=st.waveA[2*i]*st.waveNorm,hi=st.waveA[2*i+1]*st.waveNorm;cx.fillRect(x,H/2-hi*H/2,1,Math.max(1,(hi-lo)*H/2));}
+  if(st.bufA){const p=curPos()/dur*W; cx.fillStyle='#4fd1c5'; cx.fillRect(p-1,0,2,H);}
+}
+let drag=null;
+cv.onmousedown=e=>{drag={x0:e.offsetX,x1:e.offsetX,moved:false}};
+cv.onmousemove=e=>{if(!drag)return; drag.x1=e.offsetX; if(Math.abs(drag.x1-drag.x0)>3) drag.moved=true; if(drag.moved){const dur=st.n/st.sr,W=cv.clientWidth; st.loopStart=Math.min(drag.x0,drag.x1)/W*dur; st.loopEnd=Math.max(drag.x0,drag.x1)/W*dur;}};
+window.onmouseup=e=>{if(!drag)return; const dur=st.n/st.sr,W=cv.clientWidth; if(drag.moved) setLoop(Math.min(drag.x0,drag.x1)/W*dur,Math.max(drag.x0,drag.x1)/W*dur); else seek(drag.x0/W*dur); drag=null;};
+function raf(){ if(T.active&&st.playing){const len=st.loopEnd-st.loopStart; $('#trialProg').style.width=(100*(curPos()-st.loopStart)/len)+'%';} if(st.bufA){ drawWave(); const p=curPos(); $('#time').textContent=`${Math.floor(p/60)}:${(p%60).toFixed(1).padStart(4,'0')} / ${(st.n/st.sr).toFixed(1)} s`; } requestAnimationFrame(raf); }
+raf();
+
+/* ---------- hidden X (shared by explore + test) ---------- */
+function newTrial(){ st.trial={x:Math.random()<0.5?'A':'B',k:st.k}; if(st.sel==='X') select('X'); }
+$('#bNewX').onclick=()=>{newTrial(); $('#selInfo').textContent='New hidden X assigned'; };
+function renderKSelect(){ $('#tK').innerHTML=KS.map(k=>`<option value="${k}" ${k===st.k?'selected':''}>${kLabel(k)}${k===1?' (real files)':''}</option>`).join(''); }
+$('#tK').onchange=e=>setK(+e.target.value);
+
+/* ---------- blind test ---------- */
+Object.assign(T,{total:16,len:10,i:0,x:null,clip:[0,0],results:[],timer:null,ref:true,fb:true});
+// Candidate clips: every len/2 seconds across the whole file, minus near-silent ones.
+// Shuffled into a deck and dealt without repeats so a test covers lots of different material.
+function buildDeck(len){
+  const dur=st.n/st.sr; if(len>=dur) return [[0,dur]];
+  const m=st.mA, sr=st.sr, L=Math.round(len*sr), hop=Math.max(1,Math.round(L/2));
+  const cands=[]; let maxE=0;
+  for(let s0=0; s0+L<=st.n; s0+=hop){ let e=0; for(let i=s0;i<s0+L;i+=4) e+=m[i]*m[i]; cands.push({s0,e}); if(e>maxE) maxE=e; }
+  let keep=cands.filter(c=>c.e>maxE*0.01); // within 20 dB of the loudest section
+  if(keep.length<4) keep=cands;
+  for(let i=keep.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[keep[i],keep[j]]=[keep[j],keep[i]];}
+  // avoid dealing two overlapping sections back to back
+  for(let i=1;i<keep.length;i++){ if(Math.abs(keep[i].s0-keep[i-1].s0)<L){ for(let j=i+1;j<keep.length;j++){ if(Math.abs(keep[j].s0-keep[i-1].s0)>=L){[keep[i],keep[j]]=[keep[j],keep[i]];break;} } } }
+  return keep.map(c=>[c.s0/sr,(c.s0+L)/sr]);
+}
+function pickClip(len){
+  if(!T.deck||!T.deck.length||T.deckLen!==len){ T.deck=buildDeck(len); T.deckLen=len; }
+  return T.deck.shift();
+}
+$('#btnStart').onclick=startTest; $('#btnAgain').onclick=()=>{ $('#testDone').hidden=true; $('#testSetup').hidden=false; };
+function startTest(){
+  stopAll(); T.total=+$('#tTrials').value; T.ref=false; T.fb=false; T.i=0; T.results=[]; T.active=true; T.deck=null;
+  const lv=$('#tLen').value; T.len=lv==='loop'?null:+lv;
+  $('#testSetup').hidden=true; $('#testDone').hidden=true; $('#testRun').hidden=false;  $('#tfb').textContent='';
+  nextTrial();
+}
+function nextTrial(){
+  clearTimeout(T.timer); stopAll();
+  if(T.i>=T.total) return endTest();
+  T.i++; T.x=Math.random()<0.5?'A':'B'; st.trial={x:T.x,k:st.k};
+  T.clip=T.len?pickClip(T.len):[st.loopStart,st.loopEnd];
+  $('#trialLbl').textContent=`Trial ${T.i} of ${T.total}`; $('#trialState').textContent='new clip in a moment…'; $('#trialProg').style.width='0';
+  $('#tX').classList.remove('on'); $('#ansA').disabled=$('#ansB').disabled=true;
+  const card=$('#trialCard'); card.classList.add('flash');
+  T.timer=setTimeout(()=>{ card.classList.remove('flash');
+    st.loopStart=T.clip[0]; st.loopEnd=T.clip[1]; st.pos=T.clip[0]; drawWave();
+    select('X'); $('#tX').classList.add('on'); $('#trialState').textContent='playing the hidden clip — which is it?'; $('#ansA').disabled=$('#ansB').disabled=false; }, 900);
+}
+function tSelect(w){ if(!T.active||$('#ansA').disabled||w!=='X') return; select('X'); $('#tX').classList.add('on'); $('#trialState').textContent='playing the hidden clip — which is it?'; }
+$('#tX').onclick=()=>tSelect('X');
+function answer(g){
+  if(!T.active||$('#ansA').disabled) return; const ok=g===T.x;
+  const r={t:Date.now(),k:st.k,x:T.x,guess:g,ok,clip:T.clip[0].toFixed(1)}; T.results.push(r); st.results.push(r); save(); renderResults();
+  stopAll(); $('#ansA').disabled=$('#ansB').disabled=true;
+  const fb=$('#tfb'); fb.textContent=`Answer ${T.i} of ${T.total} recorded`; fb.className='fb';
+  $('#trialState').textContent='…'; T.timer=setTimeout(()=>{fb.textContent=''; nextTrial();}, 700);
+}
+$('#ansA').onclick=()=>answer('A'); $('#ansB').onclick=()=>answer('B');
+$('#btnAbort').onclick=()=>{ T.active=false; clearTimeout(T.timer); stopAll(); $('#testRun').hidden=true; $('#testSetup').hidden=false; };
+function endTest(){
+  T.active=false; stopAll(); $('#testRun').hidden=true; $('#testDone').hidden=false;
+  const n=T.results.length,c=T.results.filter(r=>r.ok).length,p=pval(n,c);
+  let v; if(p<0.01) v='Yes — you can clearly hear the difference.'; else if(p<0.05) v='Probably yes — you can hear a difference (statistically significant).'; else if(n&&c/n>0.6) v='Not proven — above chance but not significant. Run more trials.'; else v='No evidence you can tell them apart at this level.';
+  const list=T.results.map((r,i)=>`<span class="${r.ok?'ok':'bad'}" title="trial ${i+1}: it was the ${lbl(r.x)}, you said ${lbl(r.guess)}"></span>`).join('');
+  $('#verdict').innerHTML=`<b>${c} / ${n}</b> correct at ${kLabel(st.k)} difference &nbsp;·&nbsp; p = ${p.toFixed(3)}<br>${v}<br><div class="dots" style="margin:6px 0">${list}</div><span class="hint">green = right, red = wrong, hover for detail</span><br><span class="hint">${lbl('A')} = ${st.nameA} · ${lbl('B')} = ${st.nameB} · ${T.len?T.len+' s':'loop region'} clips, no reference listening</span>`;
+}
+function pval(n,c){ let p=0,comb=1; for(let i=0;i<=n;i++){ if(i>=c) p+=comb; comb=comb*(n-i)/(i+1); } return p/Math.pow(2,n); }
+function renderResults(){
+  const by={}; st.results.forEach(r=>{(by[r.k]=by[r.k]||[]).push(r)});
+  const row=(label,rs)=>{const n=rs.length,c=rs.filter(r=>r.ok).length,p=pval(n,c);return `<tr><td>${label}</td><td>${n}</td><td>${c}</td><td>${n?Math.round(100*c/n):0}%</td><td style="color:${p<0.05&&n>=8?'var(--ok)':'inherit'}">${n?p.toFixed(3):'—'}</td></tr>`;};
+  let html='<tr><th>History · level</th><th>Trials</th><th>Correct</th><th>%</th><th>p</th></tr>';
+  KS.filter(k=>by[k]).forEach(k=>html+=row(kLabel(k),by[k]));
+  html+=row('<b>All</b>',st.results);
+  $('#resTable').innerHTML=html;
+}
+$('#btnReset').onclick=()=>{ if(confirm('Clear all recorded trials?')){st.results=[];save();renderResults();} };
+$('#btnCsv').onclick=()=>{ const csv='time,k,x,guess,correct,clip_start_s,A,B\n'+st.results.map(r=>`${new Date(r.t).toISOString()},${r.k},${r.x},${r.guess},${r.ok?1:0},${r.clip||''},"${st.nameA}","${st.nameB}"`).join('\n'); dl(new Blob([csv],{type:'text/csv'}),'abx-results.csv'); };
+function save(){ try{localStorage.setItem('namabx',JSON.stringify({results:st.results}))}catch(e){} }
+try{const s=JSON.parse(localStorage.getItem('namabx')||'null'); if(s){st.results=s.results||[];}}catch(e){}
+
+/* ---------- export ---------- */
+function dl(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000);}
+$('#btnExport').onclick=()=>{ if(!st.D) return;
+  const n=st.n,nc=st.ch,buf=new ArrayBuffer(44+n*nc*4),v=new DataView(buf);
+  const str=(o,s)=>{for(let i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i))};
+  str(0,'RIFF');v.setUint32(4,36+n*nc*4,true);str(8,'WAVE');str(12,'fmt ');v.setUint32(16,16,true);v.setUint16(20,3,true);v.setUint16(22,nc,true);v.setUint32(24,st.sr,true);v.setUint32(28,st.sr*nc*4,true);v.setUint16(32,nc*4,true);v.setUint16(34,32,true);str(36,'data');v.setUint32(40,n*nc*4,true);
+  const f=new Float32Array(buf,44); for(let i=0;i<n;i++)for(let c=0;c<nc;c++)f[i*nc+c]=st.D[c][i];
+  dl(new Blob([buf],{type:'audio/wav'}),'residual B-minus-A.wav'); };
+
+/* ---------- keys ---------- */
+window.addEventListener('keydown',e=>{
+  if((e.target.matches&&e.target.matches('input,select,textarea'))||e.metaKey||e.ctrlKey) return;
+  const k=e.key.toLowerCase(); const map={'1':'A','a':'A','2':'B','b':'B','3':'X','x':'X','4':'D','d':'D'};
+  if(k===' '){e.preventDefault(); st.playing?pause():play();}
+  else if(map[k]){ if(T.active){ if(map[k]==='X') tSelect('X'); } else select(map[k]); }
+  else if(k==='[') answer('A'); else if(k===']') answer('B');
+});
+window.addEventListener('resize',drawWave);
+listServer();
+</script>
+</body>
+</html>

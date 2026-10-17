@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Amp Blind Test</title>
+<meta name="description" content="Can you hear the difference between a real amp and a NAM capture? A short blind listening test.">
+<style>
+:root{--bg:#121417;--panel:#1b1f24;--line:#2b313a;--fg:#e6e9ee;--muted:#8b94a3;--acc:#4fd1c5;
+  --a:#5b9cf6;--b:#f6a35b;--x:#c78bff;--ok:#4caf7d;--bad:#e05d5d}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 -apple-system,system-ui,"Segoe UI",sans-serif}
+main{max-width:640px;margin:0 auto;padding:28px 16px 60px}
+h1{font-size:26px;margin:0 0 6px}
+.sub{color:var(--muted);margin:0 0 22px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px}
+label{display:block;color:var(--muted);font-size:13px;margin:14px 0 4px}
+input,select,textarea{width:100%;font:inherit;color:var(--fg);background:#0f1215;border:1px solid var(--line);border-radius:8px;padding:10px}
+textarea{min-height:110px;resize:vertical}
+button{font:inherit;color:var(--fg);background:#262c35;border:1px solid var(--line);border-radius:10px;padding:12px 18px;cursor:pointer}
+button:hover:not(:disabled){background:#2f3641}
+button:disabled{opacity:.4;cursor:default}
+.primary{background:var(--acc);color:#07201d;border-color:transparent;font-weight:700;width:100%;padding:14px;font-size:17px;margin-top:20px}
+.primary:hover:not(:disabled){background:#63ddd2}
+ul.how{padding-left:20px;margin:0;color:var(--fg)}
+ul.how li{margin:4px 0}
+.note{color:var(--muted);font-size:13px;margin-top:14px}
+.load{height:6px;background:#0d0f12;border-radius:3px;overflow:hidden;margin-top:16px}
+.load div{height:100%;width:0;background:var(--acc);transition:width .2s}
+#loadMsg{font-size:13px;color:var(--muted);margin-top:6px}
+.trialCard{border:2px solid var(--x);background:#1a1522;transition:background .25s}
+.trialCard.flash{background:#2b2240}
+.head{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.head b{font-size:20px}
+.head span{color:var(--x);font-size:14px;text-align:right}
+.bar{height:6px;background:#0d0f12;border-radius:3px;margin-top:10px;overflow:hidden}
+.bar div{height:100%;width:0;background:var(--x)}
+.q{display:block;margin:22px auto 6px;width:150px;height:150px;border-radius:50%;font-size:56px;font-weight:800;color:var(--x);border:3px solid var(--x);background:#221a30}
+.q.playing{animation:pulse 1.2s ease-in-out infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 12px rgba(199,139,255,.12)}}
+.qhint{text-align:center;color:var(--muted);font-size:13px}
+.answers{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:20px}
+.answers button{padding:16px 10px;font-size:16px;font-weight:600}
+.answers .ansA{border-color:var(--a)} .answers .ansB{border-color:var(--b)}
+.recorded{text-align:center;color:var(--muted);min-height:24px;margin-top:12px}
+.score{font-size:44px;font-weight:800;line-height:1.1}
+.verdict{font-size:19px;margin:8px 0 4px}
+.dots{margin:14px 0 4px}
+.dots span{display:inline-block;width:14px;height:14px;border-radius:50%;margin:3px}
+.dots .ok{background:var(--ok)} .dots .bad{background:var(--bad)}
+.sent{color:var(--ok);font-weight:600;margin-top:12px}
+.err{color:var(--bad);margin-top:12px}
+@media(max-width:420px){.answers{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<main>
+  <h1>Amp Blind Test</h1>
+  <p class="sub" id="subtitle">Real amp or NAM capture? Let's find out if you can really hear it.</p>
+
+  <!-- intro -->
+  <section class="card" id="intro">
+    <ul class="how">
+      <li>You'll hear <b id="nTrials">16</b> short clips of guitar.</li>
+      <li>Each one is either the <b class="lA">Real amp</b> or the <b class="lB">NAM capture</b>, picked at random.</li>
+      <li>Listen as many times as you like, then pick which you think it was.</li>
+      <li>No feedback until the end, then you get your score.</li>
+    </ul>
+    <label for="name">Your name</label>
+    <input id="name" autocomplete="name" placeholder="So we know whose result this is">
+    <label for="setup">What are you listening on?</label>
+    <select id="setup">
+      <option value="">Choose one</option>
+      <option>Headphones</option><option>Earbuds</option><option>Studio monitors</option>
+      <option>Laptop speakers</option><option>Phone speaker</option><option>Other speakers</option>
+    </select>
+    <div class="load"><div id="loadBar"></div></div>
+    <div id="loadMsg">Loading audio…</div>
+    <button class="primary" id="start" disabled>Start the test</button>
+    <p class="note">Headphones help. Both versions are the same performance, matched in volume and timing, so only the tone is different. On an iPhone, check the silent switch if you hear nothing.</p>
+  </section>
+
+  <!-- trial -->
+  <section class="card trialCard" id="trial" hidden>
+    <div class="head"><b id="tLbl">Clip 1 of 16</b><span id="tState">get ready…</span></div>
+    <div class="bar"><div id="tBar"></div></div>
+    <button class="q" id="q" aria-label="Play the clip again">?</button>
+    <div class="qhint" id="qhint">Tap ? to hear it again</div>
+    <div class="answers">
+      <button class="ansA" id="ansA">It was the <span class="lA">Real amp</span></button>
+      <button class="ansB" id="ansB">It was the <span class="lB">NAM capture</span></button>
+    </div>
+    <div class="recorded" id="recorded"></div>
+  </section>
+
+  <!-- result -->
+  <section class="card" id="result" hidden>
+    <div class="score" id="score"></div>
+    <div class="verdict" id="verdict"></div>
+    <div class="note" id="pnote"></div>
+    <div class="dots" id="dots"></div>
+    <div class="note">Green = right, red = wrong. Hover or tap a dot for details.</div>
+    <label for="notes">Notes: what did you listen for? Anything stand out?</label>
+    <textarea id="notes" placeholder="e.g. the real amp felt brighter on the palm mutes, but I was mostly guessing…"></textarea>
+    <button class="primary" id="send">Send my result</button>
+    <div id="sendMsg"></div>
+  </section>
+</main>
+
+<script src="config.js"></script>
+<script>
+'use strict';
+const C = window.BLIND_TEST;
+const $ = s => document.querySelector(s);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const LBL = C.labels;
+document.querySelectorAll('.lA').forEach(e => e.textContent = LBL.A);
+document.querySelectorAll('.lB').forEach(e => e.textContent = LBL.B);
+$('#subtitle').textContent = `${LBL.A} or ${LBL.B}? Let's find out if you can really hear it.`;
+$('#nTrials').textContent = C.trials;
+
+const truth = JSON.parse(atob(C.key.split('').reverse().join('')));
+const which = f => truth[f.split('/').pop()];          // 'A' or 'B'
+
+let ctx, buffers = {}, ready = false;
+const S = { i: 0, results: [], deck: [], cur: null, src: null, playStart: 0, timer: 0, t0: 0 };
+
+/* ---------- load audio (fetch with progress, decode on first tap) ---------- */
+async function fetchWithProgress(url, onBytes) {
+  const r = await fetch(url); if (!r.ok) throw new Error(`${url}: ${r.status}`);
+  const total = +r.headers.get('content-length') || 0;
+  if (!r.body || !total) { const b = await r.arrayBuffer(); onBytes(b.byteLength, b.byteLength); return b; }
+  const reader = r.body.getReader(), chunks = []; let got = 0;
+  for (;;) { const { done, value } = await reader.read(); if (done) break; chunks.push(value); got += value.length; onBytes(got, total); }
+  const out = new Uint8Array(got); let o = 0; for (const c of chunks) { out.set(c, o); o += c.length; } return out.buffer;
+}
+const raw = {};
+(async () => {
+  try {
+    const prog = {};
+    await Promise.all(C.files.map(f => fetchWithProgress(f, (g, t) => {
+      prog[f] = [g, t]; const G = Object.values(prog).reduce((a, x) => a + x[0], 0), T = Object.values(prog).reduce((a, x) => a + x[1], 0);
+      $('#loadBar').style.width = (T ? 100 * G / T : 0) + '%'; $('#loadMsg').textContent = `Loading audio… ${(G / 1e6).toFixed(1)} of ${(T / 1e6).toFixed(1)} MB`;
+    }).then(b => raw[f] = b)));
+    $('#loadBar').style.width = '100%'; $('#loadMsg').textContent = 'Audio loaded.'; ready = true; checkStart();
+  } catch (e) { $('#loadMsg').textContent = 'Could not load the audio: ' + e.message; $('#loadMsg').className = 'err'; }
+})();
+function checkStart() { $('#start').disabled = !(ready && $('#name').value.trim() && $('#setup').value); }
+$('#name').oninput = checkStart; $('#setup').onchange = checkStart;
+
+$('#start').onclick = async () => {
+  $('#start').disabled = true; $('#loadMsg').textContent = 'Preparing…';
+  try {
+    if (navigator.audioSession) try { navigator.audioSession.type = 'playback'; } catch (e) {}
+    ctx = new (window.AudioContext || window.webkitAudioContext)(); await ctx.resume();
+    for (const f of C.files) buffers[f] = await ctx.decodeAudioData(raw[f].slice(0));
+  } catch (e) {
+    $('#loadMsg').textContent = 'This browser could not play the audio (' + e.message + '). Try Chrome, Safari or Firefox on a computer.'; $('#loadMsg').className = 'err'; return;
+  }
+  S.deck = buildDeck(C.clipSeconds);
+  $('#intro').hidden = true; $('#trial').hidden = false;
+  nextTrial();
+};
+
+/* ---------- clip deck: sections across the whole file, no repeats ---------- */
+function buildDeck(len) {
+  const b = buffers[C.files[0]], d = b.getChannelData(0), sr = b.sampleRate, n = b.length;
+  const L = Math.round(len * sr), hop = Math.round(L / 2), c = [];
+  let maxE = 0;
+  for (let s = 0; s + L <= n; s += hop) { let e = 0; for (let i = s; i < s + L; i += 8) e += d[i] * d[i]; c.push({ s, e }); maxE = Math.max(maxE, e); }
+  let keep = c.filter(x => x.e > maxE * 0.01); if (keep.length < 4) keep = c;
+  for (let i = keep.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [keep[i], keep[j]] = [keep[j], keep[i]]; }
+  for (let i = 1; i < keep.length; i++) if (Math.abs(keep[i].s - keep[i - 1].s) < L)
+    for (let j = i + 1; j < keep.length; j++) if (Math.abs(keep[j].s - keep[i - 1].s) >= L) { [keep[i], keep[j]] = [keep[j], keep[i]]; break; }
+  return keep.map(x => [x.s / sr, len]);
+}
+
+/* ---------- playback: one clip with short fades, replay on tap ---------- */
+function stop() { if (S.src) { try { S.src.stop(); } catch (e) {} S.src = null; } $('#q').classList.remove('playing'); }
+function play() {
+  stop(); const [start, len] = S.cur.clip, buf = buffers[S.cur.file];
+  const g = ctx.createGain(), s = ctx.createBufferSource(), t = ctx.currentTime + 0.02, f = 0.015;
+  s.buffer = buf; s.connect(g); g.connect(ctx.destination);
+  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(1, t + f);
+  g.gain.setValueAtTime(1, t + len - f); g.gain.linearRampToValueAtTime(0, t + len);
+  s.start(t, start, len); S.src = s; S.playStart = t; S.cur.plays++;
+  $('#q').classList.add('playing'); $('#tState').textContent = 'listening…';
+  s.onended = () => { if (S.src === s) { S.src = null; $('#q').classList.remove('playing'); $('#tState').textContent = 'which was it?'; } };
+}
+$('#q').onclick = () => { if (S.cur && !S.cur.done) play(); };
+
+function nextTrial() {
+  stop();
+  if (S.i >= C.trials || !S.deck.length) return finish();
+  S.i++;
+  const file = C.files[Math.random() < 0.5 ? 0 : 1];
+  S.cur = { file, clip: S.deck.shift(), plays: 0, done: false, t0: performance.now() };
+  $('#tLbl').textContent = `Clip ${S.i} of ${C.trials}`; $('#tState').textContent = 'new clip…'; $('#recorded').textContent = '';
+  $('#tBar').style.width = (100 * (S.i - 1) / C.trials) + '%';
+  setAnswers(false); $('#trial').classList.add('flash');
+  clearTimeout(S.timer); S.timer = setTimeout(() => { $('#trial').classList.remove('flash'); setAnswers(true); play(); }, 900);
+}
+function setAnswers(on) { $('#ansA').disabled = $('#ansB').disabled = !on; }
+function answer(g) {
+  if (!S.cur || S.cur.done || $('#ansA').disabled) return;
+  S.cur.done = true; stop(); setAnswers(false);
+  const x = which(S.cur.file);
+  S.results.push({ clip: +S.cur.clip[0].toFixed(1), truth: x, guess: g, ok: x === g, plays: S.cur.plays, secs: +((performance.now() - S.cur.t0) / 1000).toFixed(1) });
+  $('#recorded').textContent = `Answer ${S.i} of ${C.trials} recorded`; $('#tState').textContent = '…';
+  S.timer = setTimeout(nextTrial, 700);
+}
+$('#ansA').onclick = () => answer('A'); $('#ansB').onclick = () => answer('B');
+addEventListener('keydown', e => {
+  if ($('#trial').hidden || e.target.matches?.('input,textarea,select')) return;
+  if (e.key === '[' || e.key === 'ArrowLeft') answer('A');
+  else if (e.key === ']' || e.key === 'ArrowRight') answer('B');
+  else if (e.key === ' ') { e.preventDefault(); $('#q').click(); }
+});
+
+/* ---------- result ---------- */
+function pval(n, c) { let p = 0, comb = 1; for (let i = 0; i <= n; i++) { if (i >= c) p += comb; comb = comb * (n - i) / (i + 1); } return p / Math.pow(2, n); }
+let summary;
+function finish() {
+  stop(); $('#trial').hidden = true; $('#result').hidden = false;
+  const n = S.results.length, c = S.results.filter(r => r.ok).length, p = pval(n, c);
+  const v = p < 0.01 ? 'You can clearly hear the difference.'
+    : p < 0.05 ? 'You can hear a difference. That score is very unlikely by guessing.'
+    : c / n > 0.6 ? 'Better than a coin flip, but not enough to prove you can hear it.'
+    : 'No evidence you can tell them apart. That is about what guessing gets.';
+  $('#score').textContent = `${c} / ${n}`;
+  $('#verdict').textContent = v;
+  $('#pnote').textContent = `Chance of doing this well by pure guessing: ${(p * 100).toFixed(1)}%`;
+  $('#dots').innerHTML = S.results.map((r, i) => `<span class="${r.ok ? 'ok' : 'bad'}" title="Clip ${i + 1}: it was the ${LBL[r.truth]}, you said ${LBL[r.guess]}"></span>`).join('');
+  summary = { name: $('#name').value.trim(), setup: $('#setup').value, correct: c, trials: n, percent: Math.round(100 * c / n), p: +p.toFixed(4), verdict: v,
+    detail: S.results.map((r, i) => `${i + 1}@${r.clip}s ${LBL[r.truth]}→${LBL[r.guess]}${r.ok ? ' ✓' : ' ✗'} (${r.plays}x, ${r.secs}s)`).join('; '),
+    ua: navigator.userAgent.slice(0, 200) };
+  if (!C.sheetUrl) { $('#send').textContent = 'Copy my result'; }
+}
+$('#send').onclick = async () => {
+  const data = { ...summary, notes: $('#notes').value.trim().slice(0, 4000) };
+  const msg = $('#sendMsg');
+  if (!C.sheetUrl) {
+    const text = `${data.name} (${data.setup}): ${data.correct}/${data.trials}, p=${data.p}\n${data.notes}\n${data.detail}`;
+    try { await navigator.clipboard.writeText(text); msg.className = 'sent'; msg.textContent = 'Copied. Paste it in a message to whoever sent you this.'; }
+    catch (e) { msg.className = 'note'; msg.textContent = text; }
+    return;
+  }
+  $('#send').disabled = true; msg.className = 'note'; msg.textContent = 'Sending…';
+  try {
+    await fetch(C.sheetUrl, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(data) });
+    msg.className = 'sent'; msg.textContent = 'Sent. Thanks for taking the test!';
+    $('#notes').disabled = true;
+  } catch (e) {
+    $('#send').disabled = false; msg.className = 'err'; msg.textContent = 'Could not send (' + e.message + '). Check your connection and try again.';
+  }
+};
+</script>
+</body>
+</html>
