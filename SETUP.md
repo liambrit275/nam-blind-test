@@ -20,7 +20,17 @@ score, per-clip answers and notes land as a row in your Google Sheet.
 Until `sheetUrl` is set, the page still works, and the button at the end copies the result
 to the clipboard instead of sending it.
 
-## 2. Changing the audio
+## 2. Choosing which sections the test plays
+
+1. Run `python3 serve.py "/path/to/folder of wavs"` and click Load & analyse.
+2. Drag across the waveform to select a section, then click **Add selected section**. Repeat.
+   Each saved clip shows as a numbered orange band, and each row can play either recording.
+3. Set **Trials in the test**, then click **Save & publish to site**. It commits `config.js`
+   and pushes, and the live test updates in about a minute.
+
+With no clips saved, the test picks random sections from the whole recording.
+
+## 3. Changing the audio
 
 Re-run the prep script with any two renders. It aligns, loudness-matches, writes neutral FLAC
 names into `audio/` and regenerates `config.js` (keeping your `sheetUrl`):

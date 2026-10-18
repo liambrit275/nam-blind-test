@@ -161,12 +161,26 @@ $('#start').onclick = async () => {
   } catch (e) {
     $('#loadMsg').textContent = 'This browser could not play the audio (' + e.message + '). Try Chrome, Safari or Firefox on a computer.'; $('#loadMsg').className = 'err'; return;
   }
-  S.deck = buildDeck(C.clipSeconds);
+  S.deck = (C.clips && C.clips.length) ? chosenDeck(C.clips, C.trials) : buildDeck(C.clipSeconds);
   $('#intro').hidden = true; $('#trial').hidden = false;
   nextTrial();
 };
 
-/* ---------- clip deck: sections across the whole file, no repeats ---------- */
+/* ---------- clip deck ---------- */
+// Clips chosen in the lab: shuffled, each used as evenly as possible, never the same clip twice in a row.
+function chosenDeck(clips, n) {
+  const dur = buffers[C.files[0]].duration, ok = clips.filter(([s, l]) => s >= 0 && l > 0 && s + l <= dur + 0.01);
+  if (!ok.length) return buildDeck(C.clipSeconds);
+  const out = [];
+  while (out.length < n) {
+    const pack = ok.map((c, i) => i);
+    for (let i = pack.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [pack[i], pack[j]] = [pack[j], pack[i]]; }
+    if (out.length && pack.length > 1 && ok[pack[0]] === out[out.length - 1]) [pack[0], pack[1]] = [pack[1], pack[0]];
+    for (const i of pack) if (out.length < n) out.push(ok[i]);
+  }
+  return out.map(([s, l]) => [s, Math.min(l, dur - s)]);
+}
+// No clips chosen: sections across the whole file, no repeats.
 function buildDeck(len) {
   const b = buffers[C.files[0]], d = b.getChannelData(0), sr = b.sampleRate, n = b.length;
   const L = Math.round(len * sr), hop = Math.round(L / 2), c = [];

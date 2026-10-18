@@ -4,7 +4,7 @@
 usage: python3 serve.py "/path/to/audio folder" [port]
 Then open http://localhost:8765 (opens automatically).
 """
-import http.server, json, pathlib, sys, urllib.parse, webbrowser, threading, mimetypes
+import http.server, json, pathlib, re, subprocess, sys, urllib.parse, webbrowser, threading, mimetypes
 
 HERE = pathlib.Path(__file__).resolve().parent
 AUDIO = pathlib.Path(sys.argv[1]).expanduser().resolve() if len(sys.argv) > 1 else HERE
@@ -46,6 +46,51 @@ class H(http.server.SimpleHTTPRequestHandler):
                 self.copyfile(fh, self.wfile)
             return
         return super().do_GET()
+
+    def do_POST(self):
+        path = self.path.split('?', 1)[0]
+        try:
+            if path == '/api/clips':
+                n = int(self.headers.get('Content-Length', 0))
+                body = json.loads(self.rfile.read(n) or b'{}')
+                clips = [[round(float(s), 3), round(float(l), 3)] for s, l in body.get('clips', []) if float(l) > 0.2]
+                trials = max(2, min(60, int(body.get('trials', 16))))
+                write_config(clips, trials)
+                return self._json(200, {'ok': True, 'clips': len(clips), 'trials': trials})
+            if path == '/api/publish':
+                return self._json(200, {'ok': True, 'message': publish()})
+        except Exception as e:
+            return self._json(400, {'error': str(e)})
+        return self._json(404, {'error': 'not found'})
+
+    def _json(self, code, obj):
+        return self._send(code, 'application/json', json.dumps(obj).encode())
+
+
+def write_config(clips, trials):
+    """Update clips and trials in config.js, leaving everything else as it is."""
+    cfg = HERE / 'config.js'
+    t = cfg.read_text()
+    t = re.sub(r'\n[ \t]*clips:[^\n]*', '', t)
+    t = re.sub(r'trials:\s*\d+', f'trials: {trials}', t)
+    t = re.sub(r'(clipSeconds:\s*[\d.]+,)', r'\1\n  clips: ' + json.dumps(clips) + ',', t)
+    assert 'clips:' in t, 'config.js has no clipSeconds line to anchor clips'
+    cfg.write_text(t)
+
+
+def publish():
+    """Commit config.js and push, so GitHub Pages picks up the new clips."""
+    def git(*a):
+        return subprocess.run(['git', '-C', str(HERE), *a], capture_output=True, text=True)
+    if git('diff', '--quiet', '--', 'config.js').returncode == 0:
+        return 'No changes since the last publish.'
+    r = git('add', 'config.js')
+    r = git('-c', 'user.name=Liam Britten', '-c', 'user.email=liambrittenmusic@gmail.com',
+            'commit', '-m', 'Update test clips', '--', 'config.js')
+    if r.returncode: raise RuntimeError(r.stderr.strip() or r.stdout.strip())
+    r = git('push', '-q')
+    if r.returncode: raise RuntimeError('committed, but push failed: ' + r.stderr.strip())
+    return 'Published. The live test updates in about a minute.'
 
 
 if __name__ == '__main__':

@@ -134,7 +134,7 @@ details#explore section{border:none;padding:0}
   </div>
 </section>
 
-<details id="explore" hidden>
+<details id="explore" open hidden>
   <summary>Explore freely (not a test): A / B / hidden X / difference signal, waveform, loop region</summary>
   <section style="margin-top:8px">
   <canvas id="wave" height="110"></canvas>
@@ -159,8 +159,25 @@ details#explore section{border:none;padding:0}
   </section>
 </details>
 
+<section id="clipPanel" hidden>
+  <h2>4 · Clips for the shared test</h2>
+  <p class="hint">Drag across the waveform above to select a section, then add it. The online test plays only these clips, shuffled and spread across the trials. With no clips saved, it picks random sections.</p>
+  <div class="row">
+    <button class="primary" id="clipAdd">Add selected section</button>
+    <span class="meter" id="clipSel">nothing selected</span>
+    <span style="margin-left:auto"></span>
+    <label>Trials in the test</label><input type="number" id="clipTrials" min="2" max="60" value="16">
+  </div>
+  <table class="res" id="clipList" style="margin-top:10px"></table>
+  <div class="row" style="margin-top:10px">
+    <button id="clipSave">Save</button>
+    <button class="primary" id="clipPublish">Save &amp; publish to site</button>
+    <span id="clipMsg" class="hint"></span>
+  </div>
+</section>
+
 <details><summary>Keyboard · method notes</summary>
-<p class="hint">Space play/pause · 1/2/3 or A/B/X select source (4/D = difference signal in Explore) · [ = it was A · ] = it was B.<br>
+<p class="hint">Drag on the waveform to select a section. Space play/pause · 1/2/3 or A/B/X select source (4/D = difference signal in Explore) · [ = it was A · ] = it was B.<br>
 Level matching uses integrated LUFS so the comparison tests tone, not volume (0.1 dB mismatches are reliably heard as "better"). Alignment is to the nearest sample; sub-sample error limits how deep the null can go at high frequencies, so treat the residual number as an upper bound on the real difference. A single input only tests the model for that playing; dynamic/nonlinear behaviour on other material can differ.</p>
 </details>
 </main>
@@ -238,7 +255,7 @@ async function analyse(opts={}){
   st.waveA=peaks(mA, 1200); st.waveNorm=0;
   buildDiff(); buildBuffers(); await tick();
   st.loopStart=0; st.loopEnd=n/sr; st.pos=0;
-  $('#analysis').hidden=false; $('#test').hidden=false; $('#explore').hidden=false; st.mA=mA;
+  $('#analysis').hidden=false; $('#test').hidden=false; $('#explore').hidden=false; $('#clipPanel').hidden=false; if(!CL.loaded) loadClipConfig(); st.mA=mA;
   drawWave(); renderLadder(); renderKSelect(); newTrial(); renderResults(); applyLabels();
   status(`Loaded. A: ${st.nameA} · B: ${st.nameB} · ${fmt(n/sr,1)} s · ${sr} Hz · ${ch} ch`);
 }
@@ -372,7 +389,7 @@ function play(){ if(!st.bufA) return; ctx.resume(); let p=st.pos; if(p<st.loopSt
 function pause(){ st.pos=curPos(); stopAll(); }
 $('#btnPlay').onclick=()=>st.playing?pause():play();
 function seek(t){ const was=st.playing; if(was) stopSources(); st.pos=Math.max(0,Math.min(st.n/st.sr-0.01,t)); if(was) startSources(st.pos); }
-function setLoop(a,b){ st.loopStart=Math.max(0,Math.min(a,b)); st.loopEnd=Math.min(st.n/st.sr,Math.max(a,b)); if(st.loopEnd-st.loopStart<0.05){st.loopStart=0;st.loopEnd=st.n/st.sr;} const p=curPos(); if(st.playing){stopSources(); startSources(p>=st.loopStart&&p<st.loopEnd?p:st.loopStart);} else st.pos=p; drawWave(); }
+function setLoop(a,b){ st.loopStart=Math.max(0,Math.min(a,b)); st.loopEnd=Math.min(st.n/st.sr,Math.max(a,b)); if(st.loopEnd-st.loopStart<0.05){st.loopStart=0;st.loopEnd=st.n/st.sr;} const p=curPos(); if(st.playing){stopSources(); startSources(p>=st.loopStart&&p<st.loopEnd?p:st.loopStart);} else st.pos=p; drawWave(); renderClips(); }
 $('#loopAll').onclick=()=>setLoop(0,st.n/st.sr);
 
 function select(which){
@@ -392,7 +409,8 @@ const cv=$('#wave'), cx=cv.getContext('2d');
 function drawWave(){
   const W=cv.width=cv.clientWidth*devicePixelRatio, H=cv.height=110*devicePixelRatio; cx.clearRect(0,0,W,H);
   if(!st.waveA) return; const dur=st.n/st.sr;
-  cx.fillStyle='rgba(79,209,197,.12)'; cx.fillRect(st.loopStart/dur*W,0,(st.loopEnd-st.loopStart)/dur*W,H);
+  drawClipBands(W,H,dur);
+  cx.fillStyle='rgba(79,209,197,.16)'; cx.fillRect(st.loopStart/dur*W,0,(st.loopEnd-st.loopStart)/dur*W,H);
   cx.fillStyle='#4a5563'; const w=st.waveA.length/2; if(!st.waveNorm){let m=1e-9;for(const v of st.waveA)if(Math.abs(v)>m)m=Math.abs(v);st.waveNorm=0.95/m;}
   for(let x=0;x<W;x++){const i=Math.floor(x/W*w);const lo=st.waveA[2*i]*st.waveNorm,hi=st.waveA[2*i+1]*st.waveNorm;cx.fillRect(x,H/2-hi*H/2,1,Math.max(1,(hi-lo)*H/2));}
   if(st.bufA){const p=curPos()/dur*W; cx.fillStyle='#4fd1c5'; cx.fillRect(p-1,0,2,H);}
@@ -480,6 +498,46 @@ $('#btnReset').onclick=()=>{ if(confirm('Clear all recorded trials?')){st.result
 $('#btnCsv').onclick=()=>{ const csv='time,k,x,guess,correct,clip_start_s,A,B\n'+st.results.map(r=>`${new Date(r.t).toISOString()},${r.k},${r.x},${r.guess},${r.ok?1:0},${r.clip||''},"${st.nameA}","${st.nameB}"`).join('\n'); dl(new Blob([csv],{type:'text/csv'}),'abx-results.csv'); };
 function save(){ try{localStorage.setItem('namabx',JSON.stringify({results:st.results}))}catch(e){} }
 try{const s=JSON.parse(localStorage.getItem('namabx')||'null'); if(s){st.results=s.results||[];}}catch(e){}
+
+/* ---------- clip picker for the shared test ---------- */
+const CL={clips:[],trim:0,trials:16,loaded:false};
+const mmss=t=>`${Math.floor(t/60)}:${(t%60).toFixed(1).padStart(4,'0')}`;
+async function loadClipConfig(){
+  try{ const t=await (await fetch('/config.js',{cache:'no-store'})).text(); const w={}; new Function('window',t)(w); const c=w.BLIND_TEST||{};
+    CL.trim=c.trimSeconds||0; CL.trials=c.trials||16; CL.clips=(c.clips||[]).map(([s,l])=>[s+CL.trim,l]); CL.loaded=true;
+    $('#clipTrials').value=CL.trials; renderClips();
+  }catch(e){ $('#clipMsg').textContent='Could not read config.js: '+e.message; }
+}
+function hasSel(){ return st.bufA && (st.loopEnd-st.loopStart) < st.n/st.sr-0.05; }
+function renderClips(){
+  $('#clipSel').textContent=hasSel()?`selected ${mmss(st.loopStart)} – ${mmss(st.loopEnd)} (${(st.loopEnd-st.loopStart).toFixed(1)} s)`:'nothing selected';
+  $('#clipAdd').disabled=!hasSel();
+  $('#clipList').innerHTML=CL.clips.length?'<tr><th>#</th><th>Start</th><th>End</th><th>Length</th><th></th><th></th><th></th></tr>'+CL.clips.map(([s,l],i)=>
+    `<tr><td>${i+1}</td><td>${mmss(s)}</td><td>${mmss(s+l)}</td><td>${l.toFixed(1)} s</td><td><button data-play="${i}" data-w="A">▶ ${lbl('A')}</button></td><td><button data-play="${i}" data-w="B">▶ ${lbl('B')}</button></td><td><button data-del="${i}">Remove</button></td></tr>`).join('')
+    :'<tr><td class="hint">No clips yet. The test will use random sections.</td></tr>';
+  $('#clipList').querySelectorAll('[data-play]').forEach(b=>b.onclick=()=>{const [s,l]=CL.clips[+b.dataset.play]; setLoop(s,s+l); seek(s); select(b.dataset.w);});
+  $('#clipList').querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{CL.clips.splice(+b.dataset.del,1); dirty(); renderClips(); drawWave();});
+}
+function dirty(){ $('#clipMsg').textContent='Unsaved changes'; }
+$('#clipAdd').onclick=()=>{ if(!hasSel()) return; CL.clips.push([+st.loopStart.toFixed(3),+(st.loopEnd-st.loopStart).toFixed(3)]); CL.clips.sort((a,b)=>a[0]-b[0]); dirty(); renderClips(); drawWave(); };
+$('#clipTrials').oninput=dirty;
+async function saveClips(){
+  const body={trials:Math.max(2,Math.min(60,+$('#clipTrials').value||16)), clips:CL.clips.map(([s,l])=>[+Math.max(0,s-CL.trim).toFixed(3),l])};
+  const r=await fetch('/api/clips',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const j=await r.json(); if(!r.ok) throw new Error(j.error||r.status); return j;
+}
+$('#clipSave').onclick=async()=>{ try{ await saveClips(); $('#clipMsg').textContent='Saved to config.js (not published yet)'; }catch(e){ $('#clipMsg').textContent='Save failed: '+e.message; } };
+$('#clipPublish').onclick=async()=>{
+  $('#clipPublish').disabled=true; $('#clipMsg').textContent='Saving and publishing…';
+  try{ await saveClips(); const r=await fetch('/api/publish',{method:'POST'}); const j=await r.json(); if(!r.ok) throw new Error(j.error||r.status);
+    $('#clipMsg').textContent=j.message; }
+  catch(e){ $('#clipMsg').textContent='Publish failed: '+e.message; }
+  $('#clipPublish').disabled=false;
+};
+function drawClipBands(W,H,dur){
+  cx.font=`${11*devicePixelRatio}px -apple-system,sans-serif`;
+  CL.clips.forEach(([s,l],i)=>{ const x=s/dur*W,w=l/dur*W; cx.fillStyle='rgba(246,163,91,.18)'; cx.fillRect(x,0,w,H); cx.fillStyle='#f6a35b'; cx.fillRect(x,0,Math.max(1,devicePixelRatio),H); cx.fillText(String(i+1),x+3*devicePixelRatio,12*devicePixelRatio); });
+}
 
 /* ---------- export ---------- */
 function dl(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000);}
