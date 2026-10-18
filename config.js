@@ -6,6 +6,7 @@ window.BLIND_TEST = {
   key: "=0nICJCI6IyYhxmZuEzNjJ2Nh1SZrFGdiACLiEkIgojIjFGbm5SMlNmYidTLltWY0Jye",
   trials: 16,
   clipSeconds: 8,
+  clips: [[2.136, 11.357], [13.626, 12.292], [26.052, 17.904], [44.222, 13.494], [59.187, 22.713], [82.034, 10.288], [92.722, 26.588], [119.711, 16.968]],
   trimSeconds: 0.001633,
   stats: { residualDb: -23.2, esr: 4.82e-03, gainDb: -4.99, alignSamples: -7.43 }
 };
